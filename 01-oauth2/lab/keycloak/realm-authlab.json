@@ -1,0 +1,85 @@
+{
+  "realm": "authlab",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "alice@example.com",
+      "firstName": "Alice",
+      "lastName": "Example",
+      "credentials": [
+        { "type": "password", "value": "password123", "temporary": false }
+      ],
+      "realmRoles": ["default-roles-authlab", "invoice-reader"]
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "invoice-reader", "description": "May read invoices" },
+      { "name": "invoice-writer", "description": "May modify invoices" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "demo-web",
+      "name": "Demo Web App (public client, Authorization Code + PKCE)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "consentRequired": false,
+      "redirectUris": ["http://localhost:9000/callback"],
+      "webOrigins": ["http://localhost:9000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:9000/*"
+      }
+    },
+    {
+      "clientId": "demo-web-nopkce",
+      "name": "Deliberately weak client (no PKCE) - for the attack exercise only",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:9000/callback"],
+      "webOrigins": ["http://localhost:9000"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:9000/*"
+      }
+    },
+    {
+      "clientId": "svc-backend",
+      "name": "Backend service (confidential, Client Credentials)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "svc-backend-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "device-cli",
+      "name": "CLI / TV app (Device Authorization Grant)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true"
+      }
+    }
+  ]
+}

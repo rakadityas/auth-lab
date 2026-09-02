@@ -1,0 +1,19 @@
+# Identity provider only. The two relying parties run on your host via
+# ./run-apps.sh, for the same browser-vs-container URL reason as Module 1.
+#
+# Back-channel logout works because Keycloak (in this container) reaches the
+# host-run RPs at host.containers.internal:9000/9001 -- see the realm config.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm", "--http-port=8081"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8081
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:z

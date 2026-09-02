@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: docker.io/library/redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      REDIS_ADDR: redis:6379
+      # Swap to bcrypt or sha256 to compare cost and behaviour in the lab.
+      HASH_ALG: argon2id
+      # Set true to check new passwords against HaveIBeenPwned (needs internet).
+      HIBP_ENABLED: "false"
+      # Leave false on plain-HTTP localhost; MUST be true in any real deployment.
+      COOKIE_SECURE: "false"
+    depends_on:
+      - redis

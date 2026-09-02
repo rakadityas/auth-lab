@@ -1,0 +1,8 @@
+# Go build artifacts / compiled binaries
+*.exe
+00-authn-vs-authz/lab/fundamentals
+01-oauth2/lab/client/oauth2client
+03-sessions-mfa-recovery/lab/sessions
+# local scratch
+jar.txt
+*.log
