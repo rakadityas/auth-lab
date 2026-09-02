@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab
+      POSTGRES_DB: lab
+    ports:
+      - "5432:5432"
+    # schema.sql is applied automatically on first init of an empty data dir.
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+  mailpit:
+    image: docker.io/axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP sink
+      - "8025:8025"   # web UI — open magic links here
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://lab:lab@postgres:5432/lab
+      SMTP_ADDR: mailpit:1025
+      # unsafe = auto-link federated identities by email match (the ATO demo).
+      # Flip to "safe" to watch the takeover be refused.
+      LINK_MODE: unsafe
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started

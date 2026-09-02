@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # WebAuthn binds the credential to this RP ID + origin. localhost is a
+      # secure context, so plain HTTP is fine here (and only here).
+      RP_ID: localhost
+      RP_ORIGIN: http://localhost:8080

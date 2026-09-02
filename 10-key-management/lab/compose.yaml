@@ -1,0 +1,7 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    # No database or KMS container: the KMS is modeled in-process (kms.go) so the
+    # trust boundary is visible in code. Swap it for AWS KMS / Vault in reality.

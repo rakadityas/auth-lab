@@ -2,3 +2,58 @@ AuthN vs AuthZ Fundamentals	Authentication is showing your ID at the door;
 OAuth 2.0 Deep Dive
 OpenID Connect (OIDC), SAML & SSO
 Session Management, MFA & Account Recovery at Scale
+
+--- PROPOSED ADDITIONS (gap review 2026-09-02, pending my review) ---
+
+P1 — core account/user-system work — DONE (built & verified 2026-09-02)
+- [x] Account lifecycle & user data model  -> Module 4 (04-account-lifecycle)
+      users/credentials/identities Postgres schema, signup+email verification,
+      email change (step-up + notify old address), deactivate/soft-delete/purge
+      (GDPR), verification-token pattern, stable UUID PKs. Mailpit catches mail.
+- [x] Account linking & merging  -> Module 4 (linking.go + demo-linking-ato.sh)
+      federated login decision tree, the email-collision auto-link ATO shown live
+      via LINK_MODE=unsafe|safe, (provider,sub) as the only safe join key.
+      NOTE: explicit account *merging* of two pre-existing accounts is discussed
+      but not implemented — candidate follow-up if you want it as its own lab.
+- [x] Authorization in practice  -> Module 5 (05-authorization)
+      RBAC and ReBAC engines behind one MODEL switch; Zanzibar relation tuples,
+      inheritance + groups, recursive check w/ cycle guard, authz middleware
+      choke point, /explain introspection. Demo shows RBAC over/under-granting.
+- [x] Passkeys / WebAuthn hands-on  -> Module 6 (06-passkeys-webauthn)
+      real browser ceremony (go-webauthn), register + login with Touch ID/keys,
+      challenge/origin/RP-ID binding, clone-counter check, phishing-resistance
+      table, recovery discussion. (Full ceremony needs a browser; server verified.)
+
+P2 — expected of an identity team — DONE (built & verified 2026-09-02)
+- [x] Multi-tenancy & B2B orgs + SCIM  -> Module 7 (07-multitenancy-scim)
+      orgs/memberships model, tenant isolation (WHERE org_id), org-scoped roles,
+      invitations, per-tenant SSO connections, home-realm discovery, JIT, and
+      SCIM 2.0 provision/deprovision showing the "SSO works, offboarding doesn't"
+      incident. (Multi-tenancy and SCIM combined — they're the two halves.)
+- [x] Abuse & risk  -> Module 8 (08-abuse-risk)
+      credential-stuffing defense via cross-account IP-velocity, device/geo
+      signals, breached-password signal, risk score -> allow/step-up/deny,
+      device-trust loop. Bot/CAPTCHA/fingerprinting/ML covered as concepts.
+- [x] Audit & security events  -> Module 9 (09-audit-security-events)
+      tamper-evident hash-chained audit log (verify detects + localizes tamper),
+      new-device/password/MFA notifications to Mailpit, session inventory,
+      CAEP/RISC shared-signals emission + feed.
+- [x] Key & secret management  -> Module 10 (10-key-management)
+      in-process KMS boundary (app never sees private key), zero-downtime signing
+      rotation via kid+JWKS+retire-then-remove, envelope encryption of PII, KEK
+      rotation + rewrap (ciphertext byte-identical), secrets-in-vault discussion.
+
+    Follow-up candidates deferred from P2: SCIM Groups->roles sync; per-account
+    (targeted) velocity signal; shipping audit log to an external WORM/SIEM.
+
+P3 — nice to have / role-dependent
+- Operational excellence: SLOs for login, monitoring/alerting on auth funnels,
+  graceful degradation when the IdP or Redis is down, load-testing the token
+  endpoint, incident response for a token-leak
+- Mobile & native app auth: AppAuth pattern, secure token storage
+  (Keychain/Keystore), biometric unlock vs MFA, refresh in background
+- Legacy & directory tech: LDAP/Active Directory basics, Kerberos in one page —
+  enough to talk to enterprise customers
+- Newer specs to name-drop: CIBA, FAPI 2.0, GNAP, Verifiable Credentials
+- Compliance context: SOC 2 / GDPR / consent & terms-acceptance tracking as they
+  hit the accounts team specifically

@@ -25,9 +25,14 @@ is the *concepts*, which transfer to any language.
 
 ---
 
-## The four modules
+## The modules
 
-Work them **in order** — each builds on the last.
+Work them **in order** — each builds on the last. Modules 0–3 are the protocol
+core (passwords, OAuth, OIDC/SSO, token lifecycle); 4–6 are the account-system
+engineering an identity team owns day to day (the user data model, authorization,
+and passkeys); 7–10 are what turns that into a product enterprises buy and trust
+(multi-tenancy + SCIM, abuse/risk defense, audit & security events, and key
+management).
 
 | # | Module | You'll build | Core ideas |
 |---|--------|--------------|-----------|
@@ -35,6 +40,13 @@ Work them **in order** — each builds on the last.
 | **1** | [OAuth 2.0 Deep Dive](01-oauth2/README.md) | Trace a live Authorization Code + PKCE flow against Keycloak | The 4 roles, grant types, PKCE, RFC 9700, redirect/mix-up attacks, DPoP, token exchange, PAR |
 | **2** | [OIDC, SAML & SSO](02-oidc-saml-sso/README.md) | Two apps sharing one IdP, with SSO + back-channel logout; a JWT decode/verify/forge CLI | ID vs access token, JWT + JWKS + rotation, discovery, SSO sessions, single logout, JWT attacks, SAML comparison |
 | **3** | [Sessions, MFA & Recovery at Scale](03-sessions-mfa-recovery/README.md) | Refresh-token rotation with reuse detection + TOTP MFA + session inventory | Distributed sessions, revocation, MFA methods, recovery flows, step-up, i18n, **the stateful-vs-stateless ADR** |
+| **4** | [Account Lifecycle, Data Model & Linking](04-account-lifecycle/README.md) | A users/credentials/identities schema in Postgres with signup→verify→change→delete→purge, plus federated login | Stable IDs (never email), lifecycle state machine, GDPR soft-delete vs purge, verification-token pattern, **the account-linking takeover** |
+| **5** | [Authorization in Practice: RBAC → ReBAC](05-authorization/README.md) | The same document API behind two interchangeable authz engines | RBAC vs ReBAC, Zanzibar relation tuples, inheritance & groups, the `check` primitive, where the permission check lives, deny-by-default, 403 vs 404 |
+| **6** | [Passkeys & WebAuthn, Hands-On](06-passkeys-webauthn/README.md) | A real WebAuthn RP: register + log in with Touch ID / a security key in the browser | Registration/authentication ceremonies, challenge/origin/RP-ID binding, why passkeys are unphishable, attestation vs assertion, clone detection, recovery |
+| **7** | [Multi-Tenancy, B2B Orgs & SCIM](07-multitenancy-scim/README.md) | One deployment, many tenant orgs: isolation, per-tenant SSO, SCIM | Tenant isolation, org-scoped roles, invitations, home-realm discovery, JIT provisioning, **SCIM deprovisioning** (the offboarding incident class) |
+| **8** | [Abuse, Risk & Adaptive Auth](08-abuse-risk/README.md) | A risk engine that scores each login and adapts (allow / step-up / deny) | Credential stuffing, IP-velocity & device/geo signals, risk scoring, adaptive step-up, the device-trust loop, bot defense |
+| **9** | [Audit Logging & Security Events](09-audit-security-events/README.md) | A tamper-evident (hash-chained) audit log + security notifications | Append-only + tamper-evidence, new-device/password/MFA alerts, session inventory, **CAEP/RISC shared signals** |
+| **10** | [Key & Secret Management](10-key-management/README.md) | A KMS boundary: sign JWTs, rotate keys with zero downtime, envelope-encrypt PII | Where the signing key lives (KMS/HSM), `kid`+JWKS rotation, retire-then-remove, envelope encryption, KEK rotation without re-encrypting data |
 
 **Suggested pace:** one module per focused day (~4–5h each with the lab), or spread
 across two weeks part-time. Do the exercises and answer the quizzes out loud — the

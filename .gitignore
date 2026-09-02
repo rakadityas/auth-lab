@@ -3,6 +3,13 @@
 00-authn-vs-authz/lab/fundamentals
 01-oauth2/lab/client/oauth2client
 03-sessions-mfa-recovery/lab/sessions
+04-account-lifecycle/lab/lifecycle
+05-authorization/lab/authz
+06-passkeys-webauthn/lab/passkeys
+07-multitenancy-scim/lab/multitenancy
+08-abuse-risk/lab/abuse
+09-audit-security-events/lab/audit
+10-key-management/lab/keymgmt
 # local scratch
 jar.txt
 *.log
