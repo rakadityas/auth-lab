@@ -31,6 +31,6 @@ cat <<'EOF'
 Reuse of a rotated token means two parties hold the same secret -> theft.
 The server cannot tell the thief from the victim, so it revokes everything and
 forces a fresh login. A forced re-login is a far better outcome than letting an
-attacker silently mint access tokens forever. This is the core defense the W5D3
-ADR must account for.
+attacker silently mint access tokens forever. This is the core defense the
+Module 3 ADR must account for.
 EOF

@@ -9,6 +9,27 @@ magic instead of engineering. Do not skip this module.
 
 **Time:** ~2h reading, ~2h lab, ~1h quiz.
 
+### ELI5 — in simple words
+
+Imagine a club with a guard at the door.
+
+- **Authentication** = the guard checks your ID card. *"Who are you?"*
+- **Authorization** = the guard checks the list. *"Are you allowed in the VIP room?"*
+
+These are two different questions. This module also teaches:
+
+- **Passwords**: never save the real password. Save a special scrambled version
+  (a *hash*) that is slow to un-scramble, so a thief who steals the database
+  still cannot read the passwords.
+- **Sessions**: after you log in, the server gives your browser a small ticket
+  (a *cookie*). The server remembers "this ticket = alice". When you log out,
+  the server throws the ticket away, so it stops working right away.
+- **Attacks**: bad people try to guess passwords, steal tickets, or trick your
+  browser into sending requests you did not want. Each attack has a different
+  defense, and mixing them up is a common mistake.
+
+You will build a real login server and then attack it yourself.
+
 ---
 
 ## 1. AuthN vs AuthZ
@@ -395,7 +416,7 @@ curl -s -b jar.txt localhost:8080/me
    each way. Feel the three orders of magnitude, and think about what that means
    for both your login latency budget *and* an attacker's cracking rate.
 
-3. **Inspect Redis.** `podman exec -it lab_redis_1 redis-cli` then `KEYS *`,
+3. **Inspect Redis.** `podman compose exec redis redis-cli` then `KEYS *`,
    `GET sess:<id>`, `TTL sess:<id>`. Watch the TTL refresh when you call `/me` —
    that is sliding expiration. What is missing? (Answer: an *absolute* lifetime.
    Add one.)

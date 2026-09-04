@@ -17,6 +17,57 @@ actually safe. A leaked signing key lets an attacker forge any identity; a lost
 encryption key destroys data; a rotation done wrong logs everyone out. This is
 where those go right or wrong.
 
+### ELI5 — in simple words
+
+Everything so far depends on secret keys. This module asks the boring questions
+that decide if you actually survive.
+
+**1. Where do you keep the master stamp?**
+
+Remember the wax seal from Module 6? Your server has one that signs every login
+token. If a thief steals that stamp, they can make a token saying *"I am anyone
+I want"*. Total game over.
+
+So: **do not keep the stamp in your app.** Put it in a locked safe (a *KMS* or
+*HSM*). Your app slides paper into a slot and gets it stamped — it can **use**
+the stamp but never **hold** it. Now if a thief breaks into your app, they can
+ask for stamps (bad, and you can notice and stop it) but they cannot walk away
+with the stamp itself (permanent disaster).
+
+**2. How do you change the stamp without logging everyone out?**
+
+You must replace keys sometimes. But if you throw away the old stamp today, every
+token signed with it instantly becomes invalid — **every user is kicked out.**
+
+The trick is to overlap:
+
+```
+Step 1: sign with Key-1.                 Accept: Key-1
+Step 2: sign with Key-2. Keep old key.   Accept: Key-1 AND Key-2   ← overlap
+Step 3: wait until every old token expired (e.g. 1 hour)
+Step 4: throw Key-1 away.                Accept: Key-2
+```
+
+Every token carries a little label (`kid`) saying which key signed it, so the
+server always knows which one to check with. **Retire first, delete much later.**
+
+**3. How do you encrypt user data and still change the master key?**
+
+Say you encrypted 10 million records. Now you must change the master key. Do you
+decrypt and re-encrypt 10 million records? That would take days.
+
+No. Use **two levels of keys** (an "envelope"):
+
+- Each record gets its **own little key**, which locks that record's data.
+- The **master key** does not touch the data at all. It only locks the little keys.
+
+Picture a locked box for each record, and all the tiny box-keys sitting inside one
+big safe. To change the safe, you move the tiny keys into a new safe — **you never
+open the boxes**. The data does not move at all.
+
+In the lab you will rotate the master key and confirm the encrypted data is
+**byte-for-byte identical** afterwards. Only the tiny wrapped key changed.
+
 ---
 
 ## 1. Where does the signing key live?

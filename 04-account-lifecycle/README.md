@@ -16,6 +16,40 @@ the part of the job an accounts/identity team owns outright and the part
 interviewers probe when they want to know if you've actually run a user system,
 not just read the RFCs.
 
+### ELI5 — in simple words
+
+So far we learned how to open the door. But **what is an account, actually?**
+It is rows in a database, and a life story:
+
+```
+born  ->  confirmed  ->  alive  ->  sleeping  ->  in the trash  ->  erased
+(sign up) (click email) (normal)  (deactivated) (soft deleted)   (purged)
+```
+
+Three simple rules this module teaches:
+
+1. **Never use email as the account's ID.** People change their email. If your
+   orders, files and logs all point to "alice@old.com", everything breaks the day
+   she changes it. Instead give every person a random permanent number (UUID).
+   The email is just a *label* on the account, not the account itself.
+2. **Deleting is not one action.** First mark it deleted (so the person can
+   change their mind, and support can still investigate). Later, really erase the
+   personal data — but keep an empty "ghost row" so other tables that point to
+   this person do not break.
+3. **The dangerous one: connecting a second login method.** Alice has a password
+   account with `alice@corp.com`. Later she wants "Sign in with Google".
+
+   A thief can create a Google account and *type* `alice@corp.com` as their email.
+   If your code says "same email = same person, log them in!", the thief just
+   took over Alice's account **without knowing her password**.
+
+   The fix: only trust the identity provider's permanent user ID
+   (`provider + sub`), never the email. To connect a new login method, the person
+   must first prove they own the old one (log in with the password).
+
+You will run this attack yourself and watch it succeed, then flip one setting and
+watch it be refused.
+
 ---
 
 ## 1. Why `users` is not one table

@@ -8,6 +8,32 @@
 **Prerequisite:** Module 1. OIDC is a thin layer on the OAuth Authorization Code
 flow — if that flow is fuzzy, go back.
 
+### ELI5 — in simple words
+
+In Module 1, the hotel gave the app a **key card** (a token). The key card says
+what doors you can open. But it does **not** have your photo on it — so it does
+not prove *who you are*.
+
+**OIDC** adds the photo. It gives the app a second thing: an **ID token**, which
+is like a small signed note from Google saying *"this person is alice, she logged
+in at 9:00, and she used a fingerprint."*
+
+Two important ideas:
+
+- **A signed note (JWT).** Anyone can *read* the note (it is not secret!), but
+  nobody can *fake* it, because it has a signature. The app must check the
+  signature carefully. This module shows you how to fake a note badly and watch
+  the checks catch you.
+- **SSO (Single Sign-On).** You log in once at Google. Now App A and App B both
+  work without typing your password again. Why? Because Google remembers *you*
+  with its own cookie. When App B asks Google "who is this?", Google already
+  knows and answers immediately — no password needed.
+
+The hard part is **logging out**. Logging in once is easy. Logging out of
+*everything at once* is difficult, because there are three separate memories:
+Google's, App A's, and App B's. You will build the solution that actually works
+(back-channel logout).
+
 ---
 
 ## 1. OIDC in one paragraph

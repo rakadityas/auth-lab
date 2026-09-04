@@ -15,6 +15,26 @@ used a raw OAuth access token as proof of identity produced a well-known class o
 account-takeover bugs. Know this distinction cold; it is the most common interview
 question in this space.
 
+### ELI5 — in simple words
+
+You stay at a hotel. You do not give your house key to the hotel cleaner.
+Instead, the hotel gives the cleaner a **key card** that opens only your room,
+only this week.
+
+OAuth works the same way. You want a photo-printing app to read your photos from
+Google. You do NOT give the app your Google password. Instead:
+
+1. The app sends you to Google.
+2. You log in **at Google** (the app never sees your password).
+3. Google asks: "Allow this app to read your photos?" You say yes.
+4. Google gives the app a limited **token** (the key card): photos only,
+   for a limited time.
+
+The rest of this module is about the details that keep this safe: how the token
+travels, how a thief could steal it on the way, and the extra locks (PKCE,
+`state`, exact redirect URLs) that stop each theft. You will run the whole flow
+step by step with real requests and watch the thefts fail.
+
 ---
 
 ## 1. The four roles

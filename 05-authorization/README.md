@@ -16,6 +16,45 @@ real breaches live, because a bug here doesn't crash, it silently says "allow."
 The lab runs **one document API** against **two interchangeable engines**. You
 send the identical request and watch the answer differ.
 
+### ELI5 — in simple words
+
+You are inside the building. Now: **which rooms can you enter?**
+
+There are two ways to decide.
+
+**Way 1 — RBAC ("what is your job title?")**
+
+> Bob is an "editor". Editors can edit. So Bob can edit.
+
+Simple and fast. But notice the problem: it never asks **edit *what*?** Bob is an
+editor of *everything* — including the secret document nobody ever gave him.
+Real life is not like that. Real life says "Bob can edit *this* folder."
+
+**Way 2 — ReBAC ("how are you connected to this thing?")**
+
+Instead of job titles, we store simple facts about relationships:
+
+```
+carol is a viewer of  README
+README lives inside   folder "Engineering"
+bob    is an editor of folder "Engineering"
+dave   is a member of  group "staff"
+staff  can view        README
+```
+
+Now to answer "can Bob edit README?" we **follow the connections**: Bob edits the
+Engineering folder → README is inside that folder → so yes, Bob can edit README.
+But the secret document is not in that folder, so Bob is refused. Correct!
+
+This is how Google does it internally (a system called **Zanzibar**). Three nice
+things come free: giving one person access to one file, inheriting access from a
+folder, and giving access to a whole group.
+
+**The third lesson: where do you put the check?**
+Put it in **one place** that every request must pass through (like a single guard
+at one door), not scattered in fifty different places. If you sprinkle checks
+everywhere, one day someone forgets one — and that forgotten spot is the breach.
+
 ---
 
 ## 1. RBAC — roles carry permissions

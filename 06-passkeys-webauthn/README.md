@@ -20,6 +20,39 @@ holds a **private key that never leaves it**; the server stores only the matchin
 **public key**. Login is a signed challenge. There is nothing on the server to
 steal and nothing the user can be tricked into typing into a fake site.
 
+### ELI5 — in simple words
+
+A password is a **secret you both know**. That is the whole problem:
+
+- You know it → you can be tricked into typing it on a fake website.
+- The server knows it → a thief who breaks into the server gets it.
+
+A **passkey** is different. Think of a magic wax seal:
+
+- Your phone/laptop keeps a **private stamp** that never, ever leaves it.
+- The website keeps only a **picture of the stamp's shape** (the public key).
+  A picture is useless for making fake seals.
+
+To log in, the website says: *"Stamp this random number for me."* Your device
+asks for your fingerprint, stamps it, and sends the stamp back. The website
+compares it to the picture. Match = you are in. **Nothing secret ever travels.**
+
+**Why can't a fake website steal it?** This is the beautiful part. Your browser
+locks each passkey to *one exact website address*. If you are on `evil-bank.com`,
+the browser simply **refuses to use** your `real-bank.com` passkey. It is not
+that you are smart enough not to be fooled — the browser will not let you be
+fooled, even if you want to be.
+
+This is why passkeys beat SMS codes and authenticator apps: those codes can be
+read aloud, typed into a fake page, and used by the thief within 30 seconds.
+A passkey has no code to read.
+
+**The catch:** if you lose every device holding your passkey, you are locked out.
+So "how do I get back in?" becomes the hard problem — see §5.
+
+> ⚠️ For this module you need a **real browser** and a fingerprint reader, face
+> unlock, or a security key. It cannot be done with `curl`.
+
 ---
 
 ## 1. WebAuthn in one paragraph

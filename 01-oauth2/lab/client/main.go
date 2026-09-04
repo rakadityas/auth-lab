@@ -207,6 +207,10 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		setTemp(w, "refresh_token", rt)
 	}
 	lastTokenRes = renderTokens(tok)
+
+	json, _ := json.MarshalIndent(tok, "", "  ")
+	log.Printf("STEP 5 <- raw token endpoint response:\n%s", json)
+
 	page(w, "Tokens", lastTokenRes+`<p><a href="/">back</a></p>`)
 }
 

@@ -13,6 +13,32 @@ It also contains the course's central design decision, written up as an ADR
 (Architecture Decision Record) at the end — the exact artifact you'd produce in
 the job.
 
+### ELI5 — in simple words
+
+You are already logged in. Now what?
+
+- **Sessions at scale.** One server can remember you in its own memory. But big
+  companies run hundreds of servers. If server #7 remembers you and your next
+  click goes to server #23, you look like a stranger. Fix: all servers share one
+  fast memory (Redis).
+- **Refresh token rotation.** Your app has a long-life "renewal ticket" to get
+  new short-life tickets. Every time it is used, we give a **new** one and destroy
+  the old. So if a thief copies your ticket and tries to use it *after* you
+  already used it, we see the same ticket used twice — that means somebody
+  copied it. We then cancel **all** the tickets for that login. You must log in
+  again (small annoyance), but the thief is locked out (big win).
+- **MFA (second factor).** A password is *something you know*. It can be stolen.
+  So we ask for a second, different thing: *something you have* (a phone showing
+  a 6-digit code that changes every 30 seconds). Now a stolen password alone is
+  not enough.
+- **Account recovery.** This is the "I forgot my password" door. Attackers love
+  this door because it is often weaker than the front door. If recovery is easy
+  to abuse, your MFA is just decoration.
+
+At the end you write an **ADR** — a short document that says "we chose design B,
+here is why, and here is what it costs us." Being able to write and defend that
+is a big part of the job.
+
 ---
 
 ## 1. Distributed session stores

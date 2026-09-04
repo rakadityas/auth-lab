@@ -17,6 +17,47 @@ time. They arrive with valid-*somewhere* credentials at massive scale and let
 password reuse do the work. Defeating that isn't a better password check — it's
 reading the **context** of each attempt.
 
+### ELI5 — in simple words
+
+**The attack.** Some other website got hacked, and a list of a million
+`email + password` pairs is now for sale. Many people reuse the same password
+everywhere. So the attacker simply **tries each pair on your site, one time each**.
+
+Why do the old defenses fail here?
+
+> Module 0 said: *"block an account after 5 wrong tries."*
+> But the attacker only tries **once per account**. He never reaches 5. He just
+> has a million accounts. Even if only 0.5% work, that is 5,000 stolen accounts.
+
+**The clue that catches him.** Look at one account and you see nothing strange.
+But step back and look at the whole picture:
+
+> *One computer just tried 25 **different** accounts in two minutes.*
+
+A real person does not do that. That pattern is the fingerprint of the attack —
+and you can only see it if you look **across** accounts, not at one account.
+
+**The solution: judge the situation, not just the password.**
+Collect small clues and add up points:
+
+| Clue | Points |
+|---|---|
+| This computer touched 20+ different accounts | +60 |
+| We have never seen this device before | +25 |
+| Login from a different country than last time | +30 |
+| This password appears in a known leaked list | +20 |
+
+Then act based on the total:
+
+- **Low score → just let them in.** No annoyance. This must be most people!
+- **Medium score → ask for a code (MFA).** "Your password is right, but this
+  looks unusual — prove it's really you."
+- **High score → refuse.**
+
+The beauty: the attacker's robot gets blocked, while a normal person on their
+usual laptop notices **nothing at all**. And once you pass a check on a new
+device, we remember that device, so you are not asked again.
+
 ---
 
 ## 1. The attack: credential stuffing (and why Module 0 misses it)

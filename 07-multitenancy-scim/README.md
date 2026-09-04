@@ -16,6 +16,45 @@ Everything before this had one flat set of users. B2B SaaS doesn't work that way
 Acme and Beta are separate customers on one deployment, and the entire job is
 making sure Acme never sees Beta's data while each runs its own identity policy.
 
+### ELI5 — in simple words
+
+Until now, your app was **one house with many people**. Now it is **one big
+office building with many companies inside**. Acme is on floor 3, Beta is on
+floor 5. They share the building, but they must **never** see each other's files.
+
+Three new ideas:
+
+**1. Which company are you in right now?**
+A person is not just "an admin". They are "an admin **of Acme**". The same person
+might be a normal member at Beta, and a total stranger at Gamma. So permission
+always belongs to the pair *(person + company)*, never to the person alone.
+
+**2. The one rule you must never break.**
+Every single database question must include *"...and only for this company"*:
+
+```sql
+SELECT * FROM projects WHERE org_id = <the company we verified>
+```
+
+Forget those last few words **one time**, and Acme can read Beta's files. This is
+the most common and most serious bug in this kind of system. In the lab you will
+delete those words on purpose, see the leak, and put them back.
+
+**3. Getting people IN is easy. Getting people OUT is the part everyone forgets.**
+
+A company connects their own login system (their SSO). Employees log in happily.
+Then an employee is **fired**. IT disables them in the company's system... and
+your app never finds out! Why? Because your app only talks to their login system
+*when someone tries to log in*. The fired person's access just sits there, alive.
+
+This is a real and common security incident, called *"SSO works but offboarding
+doesn't."*
+
+The fix is **SCIM**: the company's system actively *pushes* messages to your app —
+"add this person", "**this person is disabled now**". You will watch a user get
+provisioned, use the app, then get switched off and be blocked on his very next
+click.
+
 ---
 
 ## 1. The tenant model

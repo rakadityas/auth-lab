@@ -13,6 +13,23 @@ rotation and TOTP MFA.
 > Built from a role's competency map for an accounts/identity engineer. Product
 > names have been intentionally left out; this is the transferable depth.
 
+### ELI5 — what is this course, in simple words?
+
+Think of a website as a building. This course teaches you how to be the person
+who designs the doors:
+
+- **How do we know who you are?** (login, passwords, passkeys)
+- **How do we let another app vouch for you?** ("Sign in with Google" — OAuth, OIDC)
+- **After you enter, how do we remember you?** (sessions, tokens)
+- **What are you allowed to touch inside?** (authorization)
+- **What if you lose your key, or a thief steals it?** (recovery, MFA, risk checks)
+- **How do we keep records, keys, and many companies safe in one building?**
+  (audit logs, key management, multi-tenancy)
+
+Each module = one lesson to read + one small real system to run on your computer
+and break on purpose. You learn by seeing attacks fail (and succeed, when the
+protection is turned off).
+
 ---
 
 ## Who this is for
@@ -73,7 +90,7 @@ podman --version && podman-compose --version && go version && jq --version
 ```
 
 Each lab is self-contained in its own `lab/` directory with its own
-`podman-compose.yml`. Nothing is installed globally; `podman compose down -v`
+`compose.yaml`. Nothing is installed globally; `podman compose down -v`
 removes everything a module created.
 
 ---

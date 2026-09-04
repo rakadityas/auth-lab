@@ -16,6 +16,51 @@ Every other module *does* things to accounts. This one is about **remembering**
 them trustworthily and **telling the right people**. It's unglamorous and it's
 what auditors, incident responders, and worried users all depend on.
 
+### ELI5 — in simple words
+
+Something bad happened. Two questions follow: *"what exactly happened?"* and
+*"did anyone warn the user?"* This module builds both answers.
+
+**1. A notebook a liar cannot fix.**
+You write down everything: who logged in, from where, what they changed. But a
+clever thief will also **edit your notebook** to erase their visit.
+
+The trick to stop this is like a chain. Each new line contains a small
+fingerprint of the line before it:
+
+```
+line 1: "alice logged in"            fingerprint: A7
+line 2: "alice changed password" + A7  fingerprint: B3
+line 3: "alice disabled MFA"      + B3  fingerprint: C9
+```
+
+Now if the thief secretly changes line 1, its fingerprint is no longer A7 — but
+line 2 still says "A7". **The chain breaks, and it breaks exactly at the line
+that was touched.** You cannot fix line 1 without also fixing line 2, then 3,
+then every line after it. In the lab you will edit an old line and watch the
+checker point straight at it.
+
+*(Note: this **detects** cheating. It does not prevent it. To prevent it you also
+copy the notebook somewhere the app cannot reach.)*
+
+**2. Tell the human.**
+When a login happens from a new phone, or a password changes, or MFA is turned
+off — **email the user**. Often the user is the only one who can say *"that
+wasn't me!"* Important detail: if someone changes the account's email address,
+send the warning to the **old** address — because the thief now controls the new
+one.
+
+**3. Tell the other computers (CAEP).**
+Here is a gap. Your login token is valid for 1 hour. After 5 minutes the company
+fires the employee. For the next 55 minutes, every other app still accepts the
+token — because they only ask "who is this?" at login time!
+
+**Shared signals** fix this: the identity system immediately *pushes* a message
+to all the other apps — *"this person's access is revoked, drop them now."*
+
+> Simple version: **notifications warn the person; shared signals warn the
+> machines.** Both beat waiting for the next login.
+
 ---
 
 ## 1. Two records, two audiences
