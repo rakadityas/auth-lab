@@ -1,0 +1,34 @@
+services:
+  redis:
+    image: docker.io/library/redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+
+  mailpit:
+    image: docker.io/axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP sink
+      - "8025:8025"   # web UI — read the OTP emails and magic links here
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      REDIS_ADDR: redis:6379
+      SMTP_ADDR: mailpit:1025
+      # safe   = every control on (hashed+peppered codes, attempt cap, single use,
+      #          resend throttle, send quotas, uniform responses)
+      # unsafe = the same product with the controls off, so the demos can break it
+      MODE: "${MODE:-safe}"
+      OTP_PEPPER: "lab-pepper-not-a-real-secret"
+      # 6 in reality; the brute-force demo restarts the app with OTP_DIGITS=4
+      # so the attack completes while you watch.
+      OTP_DIGITS: "${OTP_DIGITS:-6}"
+    depends_on:
+      - redis
+      - mailpit

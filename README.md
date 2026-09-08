@@ -49,7 +49,9 @@ core (passwords, OAuth, OIDC/SSO, token lifecycle); 4–6 are the account-system
 engineering an identity team owns day to day (the user data model, authorization,
 and passkeys); 7–10 are what turns that into a product enterprises buy and trust
 (multi-tenancy + SCIM, abuse/risk defense, audit & security events, and key
-management).
+management). Module 11 was added after the rest and slots in anywhere after
+Module 3 — it covers delivered one-time passcodes and passwordless login, the
+most widely deployed factor on earth and the one most often built wrong.
 
 | # | Module | You'll build | Core ideas |
 |---|--------|--------------|-----------|
@@ -64,6 +66,7 @@ management).
 | **8** | [Abuse, Risk & Adaptive Auth](08-abuse-risk/README.md) | A risk engine that scores each login and adapts (allow / step-up / deny) | Credential stuffing, IP-velocity & device/geo signals, risk scoring, adaptive step-up, the device-trust loop, bot defense |
 | **9** | [Audit Logging & Security Events](09-audit-security-events/README.md) | A tamper-evident (hash-chained) audit log + security notifications | Append-only + tamper-evidence, new-device/password/MFA alerts, session inventory, **CAEP/RISC shared signals** |
 | **10** | [Key & Secret Management](10-key-management/README.md) | A KMS boundary: sign JWTs, rotate keys with zero downtime, envelope-encrypt PII | Where the signing key lives (KMS/HSM), `kid`+JWKS rotation, retire-then-remove, envelope encryption, KEK rotation without re-encrypting data |
+| **11** | [Delivered OTPs, Magic Links & Passwordless](11-otp-passwordless/README.md) | Email/SMS OTP + magic-link login, then brute-force and bomb it with the controls off | Delivered OTP vs TOTP, attempt cap + burn, peppered HMAC of a 20-bit secret, request binding, **OTP bombing vs SMS toll fraud**, prefetch-safe single use, the passwordless-bypass question |
 
 **Suggested pace:** one module per focused day (~4–5h each with the lab), or spread
 across two weeks part-time. Do the exercises and answer the quizzes out loud — the
@@ -121,6 +124,8 @@ subsequent runs are cached.
 - Verify a JWT properly and name the attacks each check prevents.
 - Design SSO and (the hard part) single logout across multiple apps.
 - Implement refresh-token rotation, reuse detection, and TOTP MFA.
+- Build delivered-OTP and magic-link login that survives brute force, enumeration,
+  OTP bombing and SMS toll fraud — and say which control stops which.
 - Write the stateful-vs-stateless token ADR for a real system — and defend it.
 
 ---

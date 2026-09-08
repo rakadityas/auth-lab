@@ -57,3 +57,17 @@ P3 — nice to have / role-dependent
 - Newer specs to name-drop: CIBA, FAPI 2.0, GNAP, Verifiable Credentials
 - Compliance context: SOC 2 / GDPR / consent & terms-acceptance tracking as they
   hit the accounts team specifically
+--- GAP CLOSED 2026-09-07 ---
+- [x] Delivered OTP & passwordless  -> Module 11 (11-otp-passwordless)
+      Gap found: the course had TOTP (Module 3) but nothing on the OTP the server
+      *sends* — email/SMS codes and magic links — which is the most deployed
+      factor in the world and a different threat model entirely.
+      Built: Go+Redis+Mailpit passwordless service. Email/SMS OTP with attempt cap
+      + burn, short TTL, single use, peppered HMAC over requestID||code (a 6-digit
+      code is 20 bits — password-style hashing is useless), CSPRNG codes,
+      constant-time compare, uniform anti-enumeration responses, per-identifier AND
+      per-source send quotas, resend that invalidates the prior code. Magic links
+      with atomic DEL single-use + same-browser cookie binding. MODE=unsafe (+
+      OTP_DIGITS=4) reruns the same demos as successful attacks: brute force,
+      OTP bombing, SMS toll fraud with a simulated telecom bill on /metrics.
+      All four demo scripts run green in safe mode and break as intended unsafe.
