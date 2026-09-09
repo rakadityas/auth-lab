@@ -76,6 +76,32 @@ at what the permission is attached to: **the role, globally.** There is no objec
 in the query. `bob` the editor may write *every* document in the system, because
 "editor" doesn't mean "editor of X" — it means "editor, everywhere."
 
+```
+  RBAC asks about the PERSON.  ReBAC asks about the PERSON *and* the THING.
+
+  RBAC                                ReBAC (Zanzibar-style)
+  ────                                ──────────────────────
+    bob ──► editor ──► {read,write}     folder:eng
+                                          │ parent
+    "may bob write?"                      ▼
+        one join. no document              document:readme
+        appears in the question              ▲          ▲
+                                     viewer  │          │ viewer
+    so bob may write                    user:carol   group:staff#member
+    EVERY document                                        ▲
+    that exists.                                          │ member
+        └── "editor" means                            user:dave
+            editor of the world
+                                     "may bob write readme?"
+                                        walk the graph: readme's parent is
+                                        eng, bob edits eng → yes, inherited
+
+  RBAC runs out the moment someone says any of these out loud:
+     "editor on THIS doc, not that one"      "share this one file with one
+     "whoever owns the folder owns the        outside person"
+      files inside it"                       "everyone in the staff group"
+```
+
 ### Where RBAC runs out
 
 The moment a requirement says *"editor on this document but not that one,"* or
@@ -152,6 +178,32 @@ indexes for "list all documents alice can read." The *model* is exactly this.
 ---
 
 ## 3. Where the permission check lives
+
+```
+  Where the check happens matters more than which model you picked.
+
+     request
+        │
+        ▼
+   ┌─────────────────────────────────────────┐
+   │ authz("doc:write") middleware      PEP  │  ← policy ENFORCEMENT point
+   │ one choke point, one line per route     │    (greppable, deny by default)
+   └───────────────┬─────────────────────────┘
+                   │ "may alice doc:write readme?"
+                   ▼
+   ┌─────────────────────────────────────────┐
+   │ the engine: rbacAllows | rebacAllows PDP│  ← policy DECISION point
+   └───────────────┬─────────────────────────┘    (swappable — handlers
+                   │ allow / deny                    never know which)
+                   ▼
+   ┌─────────────────────────────────────────┐
+   │ your handler — business logic only      │
+   └─────────────────────────────────────────┘
+
+  the failure mode this prevents: authorization written as `if` statements
+  inside handlers. one new endpoint, one forgotten `if`, one open door.
+  a route with no wrapper must fail CLOSED, not open.
+```
 
 Notice in [lab/main.go](lab/main.go) that **every** guarded route is wrapped in
 one `authz(permission, handler)` middleware. The check happens at the **edge of

@@ -68,6 +68,30 @@ to all the other apps — *"this person's access is revoked, drop them now."*
 A security-relevant action produces **two** different outputs, and conflating
 them is a common mistake:
 
+```
+  ONE action, THREE outputs, three different audiences:
+
+     alice's password is changed
+                │
+                ├──► AUDIT LOG          for you, security, the investigator
+                │    seq 6: password_changed, alice, 66.66.66.66, 09:14Z
+                │    append-only · complete · tamper-evident · boring
+                │
+                ├──► NOTIFICATION       for the account owner
+                │    "Your password was changed. Not you? Recover now."
+                │    the user is the only sensor that knows it wasn't them
+                │
+                └──► SHARED SIGNAL      for the OTHER machines (CAEP/RISC)
+                     {event: credential-change, sub: alice}
+                     so relying parties stop trusting the hour-long token
+                     they were issued five minutes ago
+
+  Miss any one of them and you get a real failure mode:
+     no audit        ── the incident is unreconstructable
+     no notification ── the takeover runs for months, unnoticed
+     no shared signal── every other app honours a token for 55 more minutes
+```
+
 | | Audit log | Security notification |
 |---|---|---|
 | **For** | you, security, compliance, investigators | the account owner |
@@ -89,19 +113,40 @@ insider) who gains database access must not be able to **quietly erase their
 tracks**. A plain table fails this — anyone with `UPDATE`/`DELETE` rewrites
 history and no one's the wiser.
 
+```
+  Why chaining works: each row's hash is baked into the next one's.
+
+    seq 1        seq 2        seq 3        seq 4        seq 5
+   ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐
+   │fields│    │fields│    │fields│    │fields│    │fields│
+   │ h1   ├───►│ h2   ├───►│ h3   ├───►│ h4   ├───►│ h5   │
+   └──────┘    └──────┘    └──────┘    └──────┘    └──────┘
+     h2 = SHA256(fields2 ‖ h1)      each arrow = "I contain my parent"
+
+  now an insider edits row 3 to erase what they did:
+
+   ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐
+   │      │    │      │    │EDITED│    │      │
+   │ h1   ├───►│ h2   ├───►│ h3   ├─╳─►│ h4   │
+   └──────┘    └──────┘    └──────┘    └──────┘
+                              ▲          ▲
+       recomputing h3 no longer matches  │  and seq4's prev_hash still
+       the stored h3                     │  points at the OLD h3
+                                         │
+       /audit/verify walks the chain and reports: valid=false, broke at seq 3
+       ── it points straight at the tampered row
+
+  what this buys you, precisely:
+     ✔ DETECTS tampering, and localises it
+     ✘ does not PREVENT it — someone who owns the writer recomputes forward
+     → production adds: WORM storage · ship to a SIEM the app can't edit ·
+       anchor the tip hash somewhere external · sign entries with a key the
+       app server does not hold
+```
+
 The lab's fix is a **hash chain** (see [lab/audit.go](lab/audit.go)). Each row
 stores `hash = sha256(its own fields ‖ prev_hash)`, where `prev_hash` is the
-previous row's hash. This links every row to all of its predecessors:
-
-```
-seq1  hash1 = H(fields1 ‖ GENESIS)
-seq2  hash2 = H(fields2 ‖ hash1)
-seq3  hash3 = H(fields3 ‖ hash2)
-             ▲
-             └─ edit fields3, and hash3 no longer matches a recomputation,
-                AND seq4's prev_hash no longer matches seq3 — the break is
-                localized exactly at the tampered row.
-```
+previous row's hash. This links every row to all of its predecessors, as above.
 
 `GET /audit/verify` walks the chain and recomputes every hash. Editing, deleting,
 or reordering any past row makes it report `valid: false` and the **exact seq**

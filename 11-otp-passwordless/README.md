@@ -102,7 +102,42 @@ a password does approximately nothing.
 
 ## 3. The four controls, and what each one actually stops
 
-Implemented in [otp.go](lab/otp.go):
+Implemented in [otp.go](lab/otp.go). The whole flow, with every control marked:
+
+```
+ User's device          Auth service  (+ Redis)             SMS / email
+ │                      │                                   │
+ │ POST /otp/start      │                                   │
+ │ {identifier, channel}│                                   │
+ ├──────────────────────►                                   │
+ │                      │ per-identifier quota?  ── bombing │
+ │                      │ per-source-IP quota?   ── toll fraud
+ │                      │ code = CSPRNG(6 digits)           │
+ │                      │ SET req:<id> {HMAC(code), tries:0} EX 300
+ │                      ├───────────────────────────────────►
+ │                      │                                   │ send
+ ◄──────────────────────┤                                   │
+ │                      │ 202 {request_id} — same body, same status,
+ │                      │ same latency for unknown identifiers
+ │                      │                                   │
+ ◄──────────────────────────────────────────────────────────┤
+ │ code arrives out of band  ── the channel you do not control
+ │                      │                                   │
+ │ POST /otp/verify     │                                   │
+ │ {request_id, code}   │                                   │
+ ├──────────────────────►                                   │
+ │                      │ INCR tries  ← count BEFORE comparing
+ │                      │ tries > 5 ? DEL req:<id>  ── burn the whole
+ │                      │                              request, not one guess
+ │                      │ constant-time compare against the digest
+ │                      │ match ? DEL req:<id>  ── spend it here, atomically
+ ◄──────────────────────┤                                   │
+ │                      │ session cookie                    │
+```
+
+Read it as two halves. Everything above the out-of-band hand-off protects the
+*send* (quotas, uniform response); everything below protects the *verify*
+(count-then-compare, burn, single use). Only one half is not a defence.
 
 | Control | Stops | The subtle part |
 |---|---|---|
@@ -173,6 +208,37 @@ instead of 20. That removes brute force *entirely*: no attempt cap needed, and a
 plain SHA-256 at rest is sufficient (256 bits is not enumerable).
 
 What it does **not** remove, and what [magic.go](lab/magic.go) addresses:
+
+```
+ Browser A (asked)      Auth service (+ Redis)              Inbox + scanners
+ │                      │                                   │
+ │ POST /magic/start    │                                   │
+ ├──────────────────────►                                   │
+ │                      │ tok = 256 random bits  ── 10^77, not 10^6:
+ │                      │                           no attempt cap needed
+ │                      │ SET magic:SHA256(tok) {sub, nonce} EX 600
+ │                      ├───────────────────────────────────►
+ │                      │                                   │ link ?token=tok
+ ◄──────────────────────┤                                   │
+ │                      │ Set-Cookie: magic_nonce=<n>       │
+ │                      │    └─ binds the link to THIS browser
+ │                      │                                   │
+ │                      ◄───────────────────────────────────┤
+ │                      │ scanner prefetch: GET, no cookie  │
+ │                      │ reject, do NOT consume  ── else the link is
+ │                      │                            dead before the click
+ │                      │                                   │
+ │ user clicks the link │                                   │
+ │ GET /magic/consume   │                                   │
+ │ + magic_nonce cookie │                                   │
+ ├──────────────────────►                                   │
+ │                      │ cookie nonce != stored ?  ── forwarded link,
+ │                      │                              wrong browser
+ │                      │ DEL magic:SHA256(tok) → n         │
+ │                      │ n != 1 ?  already redeemed  ── atomic single use
+ ◄──────────────────────┤                                   │
+ │                      │ session cookie                    │
+```
 
 - **Email is still the channel.** Inbox compromise is account compromise. Magic
   links make email your single point of failure, loudly.

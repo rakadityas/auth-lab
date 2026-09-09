@@ -61,6 +61,41 @@ click.
 
 Three tables carry it (see [lab/schema.sql](lab/schema.sql)):
 
+```
+  "alice is an admin" is not a fact. "alice is an admin OF ACME" is.
+
+     users (one row per human, globally)
+       alice ──┬────────────────────┬──────────────────┐
+               │                    │                  │
+        memberships row      memberships row      (no row)
+        org: Acme            org: Beta                 │
+        role: admin          role: member              ▼
+        active: true         active: true         Gamma: 403.
+               │                    │             not "no access to
+               ▼                    ▼             this project" —
+     ┌── organizations ──┐  ┌──────────────┐      she does not exist
+     │ Acme              │  │ Beta         │      here at all.
+     │  projects, data,  │  │  projects,   │
+     │  SCIM token, SSO  │  │  data, …     │
+     └───────────────────┘  └──────────────┘
+        the isolation boundary. nothing crosses it.
+
+  Every query, without exception:
+
+     request ──► who are you?  ──► which org?  ──► active membership there?
+                                        │                   │ no ──► 403
+                                        ▼ yes
+              SELECT … WHERE org_id = tc.orgID   ◄── from the VERIFIED context
+                                   ▲
+                                   └── never from the request body. a client
+                                       sending {"org_id": "<Beta>"} is ignored.
+
+     forget that WHERE clause once  ──►  cross-tenant data leak.
+     defense in depth: Postgres row-level security makes a forgotten
+     clause fail CLOSED instead of leaking.
+```
+
+
 - **`organizations`** — the tenants. Each is an isolation boundary.
 - **`users`** — one row per human, globally. A user can belong to several orgs
   (a contractor, an agency, someone with a personal + work account).
@@ -146,6 +181,36 @@ wires up SSO, everyone logs in happily. An employee is fired. IT disables them i
 the corporate IdP and moves on. **But your app never heard about it** — SSO only
 runs when someone *tries* to log in, and a fired employee's existing sessions,
 API tokens, and membership just… persist. "SSO works but offboarding doesn't."
+
+```
+  "SSO works but offboarding doesn't" — the incident, drawn:
+
+   WITHOUT SCIM
+     Acme fires frank ──► IT disables him in Okta ──► ✔ done, they think
+                                                          │
+     your app: never told. SSO only runs at LOGIN, and frank
+     doesn't need to log in — he already has:
+        · a live session cookie          ──► still works
+        · an API token                   ──► still works
+        · an active membership row       ──► still works
+     ...for as long as your session TTL, which may be weeks.
+
+   WITH SCIM  (the IdP pushes lifecycle INTO your app)
+     Okta ── PATCH /scim/v2/Users/frank {active:false} ──► your app
+                    │ bearer token = Acme's SCIM token
+                    │ so it can only ever touch Acme's rows
+                    ▼
+     memberships(Acme, frank).active = false
+                    │
+                    ▼
+     the very NEXT request: tenantScoped finds no active membership ──► 403
+
+   two rules that keep it correct:
+     · deactivate the MEMBERSHIP, not the human — frank's Beta membership
+       and his global user row are none of Acme's business
+     · SSO must not silently re-activate him on his next login, or you
+       just reopened the door you closed
+```
 
 **SCIM 2.0** (RFC 7643/7644) closes the gap: a standard REST API the IdP calls to
 push user lifecycle *into* your app, proactively.

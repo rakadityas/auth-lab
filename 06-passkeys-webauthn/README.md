@@ -75,6 +75,43 @@ Both are a **begin / finish** pair. The server code is in
 [lab/static/index.html](lab/static/index.html), which narrates each step in an
 on-page log.
 
+```
+  A passkey is a lock you send to the site and a key that never leaves you.
+
+  REGISTRATION — "here is my public lock, keep it"
+
+    you            browser            authenticator          server
+     │                │                (TouchID/key)            │
+     │  "sign up"     │                    │                    │
+     ├───────────────►├─── POST /register/begin ───────────────►│
+     │                │◄── challenge + rp id ("localhost") ─────┤
+     │                ├───────────────────►│ makes a NEW keypair
+     │  touch/face ──►│                    │ private key stays HERE,
+     │                │                    │ forever, in the enclave
+     │                │◄── public key + signature over ─────────┤
+     │                │    (challenge, rp id, origin)           │
+     │                ├─── POST /register/finish ──────────────►│ store the
+     │                │                    │                    │ PUBLIC key
+     │                                                            (a DB leak
+     │                                                             gives an
+     │                                                             attacker
+     │                                                             nothing)
+
+  LOGIN — "prove you hold the private key, right now"
+
+     │                ├─── POST /login/begin ──────────────────►│
+     │                │◄── a FRESH challenge ───────────────────┤
+     │  touch/face ──►├───────────────────►│ signs (challenge, rp id, origin)
+     │                │◄───────────────────┤
+     │                ├─── POST /login/finish (signature) ─────►│ verify with
+     │                                                          │ the stored
+     │                                                          │ public key
+
+  the challenge is new every time ── a captured login replays into nothing
+```
+
+Step by step, in the two calls the browser makes:
+
 ### Registration — `navigator.credentials.create()`
 
 ```
@@ -118,6 +155,34 @@ engineered around:
   origin the browser reports; the server checks it against `RPOrigins`. A
   proxy/man-in-the-middle relaying the login can't fix up the origin — the
   signature would break.
+
+```
+  Same attack, three credentials. Watch where it dies.
+
+  PASSWORD / TOTP                        PASSKEY
+  ───────────────                        ───────
+  victim lands on evil-l0calhost.com     victim lands on evil-l0calhost.com
+        │                                      │
+        │ types password + 6-digit code        │ browser asks: which passkeys
+        ▼                                      │ are registered for the origin
+  proxy relays both to the real site           │ "evil-l0calhost.com"?
+        │  within the code's 90s life          ▼
+        ▼                                  NONE. the passkey is bound to
+  attacker is logged in as the victim      "localhost" and the browser
+                                            will not offer it.
+  the user did nothing stupid — they              │
+  typed a real code into a page that              ▼
+  looked exactly right.                     nothing to type, nothing to
+                                            phish, nothing to relay.
+
+  two bindings do it, and the BROWSER enforces both, not the user:
+     rp id   ── the credential is only offered to the origin that made it
+     origin  ── the real origin is signed; a proxy that rewrites it
+                breaks the signature
+
+  which is why "unphishable" is a property of the protocol here, not of
+  how careful the user is.
+```
 
 Compare the things this defeats that MFA doesn't:
 

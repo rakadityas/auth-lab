@@ -54,6 +54,29 @@ order of how much you'll regret them:
 - **Client-side/stateless** — put the state in a signed token (Module 2). No store
   to scale, but revocation becomes the problem (see the ADR).
 
+```
+  Why one box in memory stops working the moment you have two boxes:
+
+    IN MEMORY                          SHARED STORE (what you build)
+
+    user ─► LB ─► app-1  [session]     user ─► LB ─► app-1 ─┐
+                  app-2  [ empty ]                 app-2 ─┼─► Redis
+                    ▲                              app-3 ─┘   sess:<id>
+                    └── routed here on the                     ttl 30m
+                        next request → 401,
+                        "why was I logged out?"   any box answers any request
+
+
+  Two clocks on every session, not one:
+
+    created ├──────────────────────────────────────────────────────► killed
+            │◄── idle 30m ──►│ activity resets this one, over and over
+            │◄──────────── absolute 12h, never reset ───────────────►│
+
+    idle timeout    ── the user walked away from a shared laptop
+    absolute cap    ── a stolen cookie cannot live forever by being used
+```
+
 ### Why Redis specifically
 
 - In-memory, sub-millisecond reads on the hot path of every authenticated request.
@@ -159,6 +182,34 @@ Ranked worst to best in 2026:
 | **WebAuthn / Passkeys** | ✅ | The industry direction. Credentials are bound to the origin, so a phishing site literally cannot use them. |
 
 ### TOTP mechanics (RFC 6238), as built in [mfa.go](lab/mfa.go)
+
+```
+  TOTP: nothing secret ever travels. Both sides do the same sum.
+
+     enrollment (once)
+       server ── secret S (QR code) ──► your phone stores S
+                                        the wire never carries S again
+
+     every login
+       phone                                server
+       ─────                                ──────
+       T = floor(now / 30s)                 T = floor(now / 30s)
+       HMAC-SHA1(S, T)                      HMAC-SHA1(S, T)
+       truncate → 384021                    truncate → 384021
+             │                                    ▲
+             └── you type 6 digits ───────────────┘  equal? let them in
+
+     ├─────30s─────┼─────30s─────┼─────30s─────┤
+       T-1            T            T+1              accept ±1 step, so a
+       ✔ accepted     ✔ accepted   ✔ accepted       phone clock a few
+                                                    seconds off still works
+
+     that ±1 window also means one code lives ~90s — long enough for a
+     phishing proxy to relay it. So burn each accepted code for the rest
+     of its life: the second use is rejected.  ── OTPs are phishable, all
+     of them. only passkeys (M6) are not.
+```
+
 
 - A shared secret is generated at enrollment and shown as a QR code
   (`otpauth://` URI) for the authenticator app to scan.

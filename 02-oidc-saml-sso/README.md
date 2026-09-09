@@ -58,6 +58,30 @@ called the **Relying Party (RP)**.
 
 ## 2. ID token vs access token — do not mix them up
 
+```
+  Two tokens come back from one login. They are NOT interchangeable.
+
+        Identity provider
+              │
+              │  here are two things
+              ├──────────────► ID TOKEN     aud = your app
+              │                "this is alice, she used MFA at 09:14"
+              │                a receipt for YOU. read it once, at login.
+              │                             ┌───────────────────────┐
+              │                             │  never send this to   │
+              │                             │  an API. it is not a  │
+              │                             │  key, it is a receipt │
+              │                             └───────────────────────┘
+              │
+              └──────────────► ACCESS TOKEN  aud = the API
+                               "the bearer may call orders-api:read"
+                               a key for the DOOR. send it on every call.
+
+     your app ──[ Authorization: Bearer <access token> ]──► the API
+     the API checks aud == itself. an ID token here means it is trusting
+     a credential minted for somebody else.
+```
+
 | | ID token | Access token |
 |---|---|---|
 | Audience (`aud`) | The **client** (RP) that logged the user in | The **resource server** (API) |
@@ -104,6 +128,31 @@ secret in a JWT. The signature is the only thing that makes it trustworthy — a
 only if you actually verify it.
 
 ### Verification, in the exact order it must happen
+
+```
+  Verification is an ORDER, not a checklist. Each step assumes the one above.
+
+   the token arrives
+        │
+        ▼
+   1. alg == "none"?                          ──► REJECT  (no signature at all)
+        │
+   2. alg in MY allowlist (RS256/ES256)?      ──► REJECT  (confusion attack:
+        │                                                  the token must not
+        │                                                  choose the algorithm)
+   3. fetch public key by `kid` from JWKS,
+      verify signature over header.payload    ──► REJECT  (forged / edited)
+        │
+        │  ── everything below is now trustworthy. before this line,
+        │     the payload is just a string a stranger sent you.
+        ▼
+   4. iss  == the issuer I trust?             ──► REJECT  (another provider)
+   5. aud  contains MY client id?             ──► REJECT  (minted for others)
+   6. exp / nbf / iat, ≤60s skew              ──► REJECT  (expired or replayed)
+   7. nonce == the one I sent?                ──► REJECT  (replayed login)
+   8. auth_time fresh enough for max_age?     ──► step-up required
+```
+
 
 The lab implements every step in
 [lab/internal/oidc/verify.go](lab/internal/oidc/verify.go). Read the failure paths.
@@ -221,6 +270,30 @@ app-b and watch it complete with no password prompt.
 Logging in is easy. Logging *out* everywhere is the hard part, because now you must
 tear down three sessions across different domains. There are three specced
 mechanisms; know all three by name.
+
+```
+  One login created THREE sessions. Logout has to kill all three.
+
+      IdP session          App A session          App B session
+      (cookie on           (cookie on             (cookie on
+       id.example)          app-a.com)             app-b.com)
+
+  RP-initiated:   user clicks log out in App A
+      ✔ killed             ✔ killed               ✘ still logged in
+
+  Front-channel:  IdP loads hidden <iframe> to each RP's logout URL
+      ✔                    ✔                      ✘ third-party cookies
+                                                    are blocked now — the
+                                                    iframe arrives without
+                                                    App B's cookie
+  Back-channel:   IdP POSTs a signed Logout Token, server to server
+      IdP ──── POST /backchannel-logout {sid, sub, events} ────► App B
+      ✔                    ✔                      ✔ no browser involved,
+                                                    so nothing to block
+
+  App B's job: keep an index  sid ──► its own session ids,  and DEL them.
+  Without that index the token arrives and there is nothing to look up.
+```
 
 **RP-Initiated Logout.** The user clicks "log out" in an RP. The RP redirects them
 to the IdP's `end_session_endpoint` with an `id_token_hint`. The IdP ends its SSO

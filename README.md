@@ -26,6 +26,27 @@ who designs the doors:
 - **How do we keep records, keys, and many companies safe in one building?**
   (audit logs, key management, multi-tenancy)
 
+```
+┌────────────────── THE BUILDING YOU ARE LEARNING TO BUILD ──────────────────┐
+│                                                                            │
+│  the door       who are you?                     M0 passwords · M6 passkeys│
+│                                                  M11 codes & magic links   │
+│  the concierge  another app vouches for you      M1 OAuth · M2 OIDC / SSO  │
+│                                                                            │
+│  the wristband  we remember you, page to page    M0 cookies · M3 tokens    │
+│  the room signs what may you touch in here?      M5 authorization          │
+│  the floors     whose company are you with?      M7 multi-tenancy · SCIM   │
+│                                                                            │
+│  the guards     does this login look like you?   M8 risk & abuse           │
+│  the ledger     what happened, provably          M9 audit & alerts         │
+│  the key safe   who holds the master keys?       M10 key management        │
+│  lost & found   you lost your key                M3 recovery · M4 lifecycle│
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+  a visitor arrives ──► every question above gets asked, in that order
+```
+
 Each module = one lesson to read + one small real system to run on your computer
 and break on purpose. You learn by seeing attacks fail (and succeed, when the
 protection is turned off).

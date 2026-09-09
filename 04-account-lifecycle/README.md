@@ -58,6 +58,35 @@ The instinct is a single `users(email, password_hash, google_id, …)` table. It
 falls apart the first time someone wants two ways to log in, or you need to keep a
 deleted user's foreign keys valid. The durable shape separates three concerns:
 
+```
+  One table  ──►  breaks the first time anything changes.
+
+    users(email PK, password_hash, google_id, github_id, totp_secret, …)
+              ▲            ▲                                   ▲
+              │            │                                   │
+      email changes    a second password?           a second passkey?
+      → every order    a passkey too?               a fourth column?
+        row is orphaned   no room                     no room
+
+
+  Three tables  ──►  each answers exactly one question.
+
+    ┌─ users ────────────────┐   who exists
+    │ id  UUID  ◄────────────┼── everything in the product points HERE
+    │ email (an attribute!)  │   and nothing points at the email
+    │ status                 │
+    └───────────┬────────────┘
+                │ user_id                     user_id │
+    ┌───────────▼────────────┐   ┌────────────────────▼─────────────┐
+    │ credentials            │   │ identities                       │
+    │ how they prove it      │   │ who else vouches for them        │
+    │ password / totp /      │   │ (provider, subject) per IdP      │
+    │ passkey — many rows    │   │ google+108…, okta+abc — many rows│
+    └────────────────────────┘   └──────────────────────────────────┘
+
+  the rule: a UUID is forever, an email is a label someone can change.
+```
+
 | Table | Answers | Holds |
 |-------|---------|-------|
 | `users` | **who exists** | the stable ID, the lifecycle status, the canonical email |
@@ -187,6 +216,38 @@ takeover*:
 
 `handleFederatedLogin` in [lab/linking.go](lab/linking.go) implements the whole
 decision tree, with the dangerous branch behind `LINK_MODE`:
+
+```
+  THE TAKEOVER (LINK_MODE=unsafe) — no password is ever guessed:
+
+   1. victim has a normal account          users: alice@corp.com  (password)
+   2. attacker registers alice@corp.com at some IdP that lets them
+      self-assert an address, or that verifies it weakly
+   3. attacker clicks "Sign in with that IdP" on your product
+   4. IdP sends you:  { sub: "attacker-999", email: "alice@corp.com" }
+   5. your code: "I know that email!"  ──►  links the new identity
+                                             to the victim's account
+   6. attacker is now inside alice's account, permanently, with their own
+      login. no password reset, no email to alice, nothing to notice.
+
+  The safe branch — the only two things that may attach an identity:
+
+     login arrives from IdP
+              │
+              ▼
+     does (provider, sub) already match a link?
+              │ yes ──────────────────────────► log in.        ✔ safe
+              │ no
+              ▼
+     is the email owned by nobody?
+              │ yes ──────────────────────────► new account.   ✔ safe
+              │ no  ── it matches a local user
+              ▼
+     REFUSE. send them to password login; once the SESSION proves
+     they own that account, let them link it from settings.
+              └── the session is proof. an `email` claim is only
+                  the IdP's opinion — even email_verified: true.
+```
 
 - **Case 1 — `(provider, sub)` already linked:** just log in. The only always-safe
   path. Note the join key: **`(provider, subject)`, never email.** `sub` is the

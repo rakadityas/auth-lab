@@ -90,6 +90,40 @@ the design. A new device is normal (people get new phones); a new device **plus*
 new country **plus** a breached password **plus** an IP hammering 20 accounts is
 not.
 
+```
+  The password was CORRECT in all three of these. Context decides the rest.
+
+   one login attempt
+        │
+        ├─ IP velocity      how many accounts has this IP touched?   +0…60
+        ├─ IP failure rate  how many of those failed?                +0…25
+        ├─ device           have we ever seen this browser here?     +0…25
+        ├─ geo              different country than last time?        +0…30
+        └─ breached pw      is this password in a known dump?        +0…20
+                                  │
+                                  ▼   sum them — no single signal decides
+                            ┌───────────┐
+                            │   score   │
+                            └─────┬─────┘
+         ┌────────────────────────┼────────────────────────┐
+         ▼ low                    ▼ medium                 ▼ high
+      ALLOW                    STEP UP                   DENY
+      zero friction.           credentials were fine,    "unusual activity"
+      must be the vast         the context is not:       and nothing more —
+      majority of logins,      ask for a second          never say WHICH
+      or you have built        factor BEFORE issuing     signal tripped, or
+      something users hate     a session                 they tune around it
+
+  and the loop that keeps friction rare:
+
+     new device ──► step_up ──► user COMPLETES the MFA ──► device trusted
+                        │                                      │
+                        │ user walks away, never finishes      ▼
+                        └──► NOT trusted  ◄── else an attacker    next login
+                             (the real bug this lab       scores 0 and
+                              was built around)           sails through
+```
+
 The signals this lab scores:
 
 | Signal | Why it matters | Points |

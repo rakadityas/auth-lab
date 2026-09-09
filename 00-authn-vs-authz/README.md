@@ -34,6 +34,20 @@ You will build a real login server and then attack it yourself.
 
 ## 1. AuthN vs AuthZ
 
+```
+                  ┌──────────────┐          ┌────────────────────┐
+  "I am alice"    │  AuthN gate  │  it's    │     AuthZ gate     │   invoice
+  + a password ──►│ who are you? ├─────────►│ may alice read     ├──► 42
+                  │              │  alice   │ THIS invoice?      │
+                  └──────┬───────┘          └─────────┬──────────┘
+                         │ can't prove it             │ not yours
+                         ▼                            ▼
+                  401 Unauthorized              403 Forbidden
+                  "I don't know you"            "I know you. No."
+
+   happens ONCE, at login            happens on EVERY protected request
+```
+
 | | Authentication (AuthN) | Authorization (AuthZ) |
 |---|---|---|
 | Question it answers | *Who are you?* | *What are you allowed to do?* |
@@ -83,6 +97,30 @@ recover plaintext passwords?
 SHA-256 is designed to be **fast**. That is exactly wrong for passwords. A modern
 GPU rig does on the order of 10^10 SHA-256 hashes per second. Every 8-character
 lowercase-alphanumeric password falls in minutes.
+
+```
+  What the attacker does after stealing your `users` table:
+
+  stored as SHA-256("hunter2")          stored as Argon2id(salt, "hunter2")
+  ────────────────────────────          ──────────────────────────────────
+  guess ─► hash ─► compare              guess ─► hash ─► compare
+  10,000,000,000 guesses/sec            ~20 guesses/sec/core, and each one
+  on one GPU                            costs 64 MB of RAM
+        │                                     │
+        ▼                                     ▼
+  every 8-char password falls           one password takes centuries
+  in minutes                            ── and you must attack each row
+  ── and identical passwords have          separately, because the SALT
+     identical hashes, so ONE crack        makes every hash unique
+     unlocks every account that
+     reused it
+
+  the four fixes, and the exact defect each one removes:
+     slow    ── kills the 10^10/sec
+     salt    ── kills rainbow tables + "crack once, open many"
+     memory  ── kills the GPU's parallelism
+     pepper  ── kills the whole attack if the DB leaks but the KMS doesn't
+```
 
 Three separate defects, three separate fixes:
 
@@ -179,6 +217,37 @@ protecting anything. That is fine.
 This tension recurs in every module of this course, and it is the single design
 question you are most likely to be asked to write down and defend.
 
+Picture the two side by side before reading the detail:
+
+```
+  SESSION COOKIE — the cookie is a claim ticket (a reference)
+
+    browser                          your server            Redis
+      │  POST /login (user+pass)          │                   │
+      ├──────────────────────────────────►│ sid = 256 random bits
+      │                                   ├──────────────────►│ sess:<sid>
+      │  Set-Cookie: sid=7f3a…            │                   │  {user, ip}
+      │◄──────────────────────────────────┤                   │
+      │  GET /me   (cookie sent for you)  │                   │
+      ├──────────────────────────────────►├── look it up ────►│
+      │                                   │                   │
+    the ticket says nothing. the coat room knows everything.
+    log out  =  DEL sess:<sid>   ── instant, total, server-side
+
+
+  JWT — the token is the coat itself (a value)
+
+    browser                          your server            (nobody)
+      │  POST /login                      │                   │
+      ├──────────────────────────────────►│ sign {sub, exp, scope}
+      │◄──── eyJhbGci…  (readable!) ──────┤                   │
+      │  Authorization: Bearer eyJ…       │                   │
+      ├──────────────────────────────────►│ verify signature. done.
+      │                                   │                   │
+    no lookup → scales anywhere, crosses domains
+    log out  =  …nothing. it stays valid until `exp`.  ── the whole problem
+```
+
 ### Server-side session + cookie (stateful)
 
 ```
@@ -252,6 +321,37 @@ on it for security. Enforce lifetime **server-side**.
 ## 6. XSS vs CSRF — different bugs, different defences
 
 People blur these constantly. Keep them apart.
+
+```
+  XSS — the attacker's code runs INSIDE your page, as your site
+
+     evil <script> lands in your HTML (a comment, a name field, a URL param)
+                    │
+                    ▼
+     it is now first-party code: it can read the DOM, read localStorage,
+     and call your API with the user's own session
+                    │
+                    ▼
+     HttpOnly stops it stealing the cookie — it does NOT stop it USING it
+
+  CSRF — the attacker never sees anything; your browser is the weapon
+
+     victim (logged in to bank.com) opens evil.com
+                    │
+                    ▼
+     evil.com: <form action="https://bank.com/transfer" method=POST> auto-submit
+                    │
+                    ▼
+     browser attaches the bank.com cookie automatically  ── that is the bug
+                    │
+                    ▼
+     stopped by: SameSite=Lax/Strict  +  a CSRF token evil.com cannot read
+
+     ┌──────────────────────────────────────────────────────────────────┐
+     │  XSS  = code execution on your origin  → defeats almost anything │
+     │  CSRF = a forged request with real credentials → cheap to fix    │
+     └──────────────────────────────────────────────────────────────────┘
+```
 
 ### XSS — Cross-Site Scripting
 

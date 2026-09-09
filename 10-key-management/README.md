@@ -72,6 +72,27 @@ In the lab you will rotate the master key and confirm the encrypted data is
 
 ## 1. Where does the signing key live?
 
+```
+  KEY ON DISK                          KEY BEHIND A KMS BOUNDARY
+
+   ┌── app server ────────┐             ┌── app server ──┐   ┌── KMS/HSM ──┐
+   │  key.pem  ◄── every  │             │                │   │  private    │
+   │  backup, crash dump, │             │  sign(payload) ├──►│  key lives  │
+   │  env var, dev with   │             │                │◄──┤  here, and  │
+   │  prod access, and    │             │  ◄─ signature  │   │  never      │
+   │  anyone who pops the │             │                │   │  leaves     │
+   │  process reads it    │             │  it is not     │   └─────────────┘
+   └──────────────────────┘             │  POSSIBLE for  │
+              │                         │  this code to  │
+              ▼                         │  read the key  │
+   forge a token for ANY user,          └────────────────┘
+   for as long as the key lives.                 │
+   unrecoverable except by                       ▼
+   rotating and invalidating          pop the server and you get the ability
+   every token in existence           to REQUEST signatures — revocable,
+                                      rate-limitable, and it shows up in logs
+```
+
 The wrong answer, and an extremely common one: **in the application** — a PEM file
 on disk, an env var, a config value. Then every app server, every backup, every
 crash dump, every developer with prod access, and anyone who compromises the
@@ -112,12 +133,28 @@ instant you switch. Zero-downtime rotation rests on three things, all from Modul
 The sequence (see `rotateSigning` and the demo):
 
 ```
-1. Steady state:        sign with K1;   JWKS = {K1}
-2. Rotate:              sign with K2;   JWKS = {K1(retired), K2}   ← overlap window
-     • new tokens carry kid=K2
-     • tokens still in the wild carry kid=K1 and KEEP verifying against JWKS
-3. Wait out max token lifetime (every K1 token has now expired)
-4. Remove K1:           sign with K2;   JWKS = {K2}
+  Rotation without logging everyone out — the overlap window:
+
+  time ───────────────────────────────────────────────────────────────►
+
+  1. steady        sign: K1     JWKS = { K1 }
+                                        tokens in the wild: kid=K1
+
+  2. rotate        sign: K2     JWKS = { K1 retired, K2 }   ◄── BOTH verify
+                                        new tokens: kid=K2
+                                        old tokens: kid=K1, still fine
+                   │
+                   │◄─ wait one MAX TOKEN LIFETIME ─►│
+                   │   every K1 token has now expired │
+                   │                                  │
+  3. remove K1     sign: K2     JWKS = { K2 }
+
+  every RP just re-fetches JWKS and sees both keys. no flag day, no
+  coordinated deploy, nobody logged out.
+
+  do step 3 too early ──► every unexpired K1 token instantly invalid
+                          ── a mass logout you did to yourself.
+                          RETIRE on rotation. remove later.
 ```
 
 The **overlap window** is the whole trick: for one max-token-lifetime, both keys
@@ -142,6 +179,31 @@ rest. Two naïve approaches both fail at scale:
   every record, is constantly in memory, and — the killer — **rotating it means
   decrypting and re-encrypting your entire dataset**, terabytes, offline-ish.
 - **A key per record, stored in the clear.** Defeats the purpose.
+
+```
+  Envelope encryption: the master key never touches your data.
+
+   ENCRYPT a record
+      fresh random DEK ──► AES-GCM(data) ──► ciphertext   (big)
+             │
+             └──► KMS wraps it with the KEK ──► wrapped_dek  (tiny)
+
+   stored row:  { kek_version, wrapped_dek, ciphertext }
+                                            └── the KEK never saw this
+
+   ROTATE the master key (KEK v1 → v2)
+      for each row:  unwrap the tiny DEK under v1
+                     re-wrap it under v2
+                     write back wrapped_dek
+      ciphertext:    UNTOUCHED, byte for byte identical
+
+   the alternative you avoided:
+      one master key encrypting data directly ──► rotating it means
+      decrypting and re-encrypting TERABYTES. so nobody ever rotates it.
+
+   old KEK versions are kept until every row is rewrapped ── same
+   retire-don't-delete discipline as the signing keys above.
+```
 
 **Envelope encryption** (the industry standard, what KMS is built for) uses two
 levels — see [lab/envelope.go](lab/envelope.go):
